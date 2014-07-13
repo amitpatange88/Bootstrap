@@ -390,7 +390,16 @@ module.exports = function (grunt) {
       npmUpdate: {
         command: 'npm update'
       }
+    },
+
+    concurrent: {
+      less: ['less:compileCore', 'less:compileTheme'],
+      autoprefixer: ['autoprefixer:core', 'autoprefixer:theme', 'autoprefixer:docs', 'autoprefixer:examples'],
+      csscomb: ['csscomb:dist', 'csscomb:docs', 'csscomb:examples'],
+      cssmin: ['cssmin:core', 'cssmin:docs'],
+      uglify: ['uglify:bootstrap', 'uglify:customize', 'uglify:docsJs']
     }
+
   });
 
 
@@ -432,11 +441,11 @@ module.exports = function (grunt) {
   grunt.registerTask('test', testSubtasks);
 
   // JS distribution task.
-  grunt.registerTask('dist-js', ['concat', 'uglify']);
+  grunt.registerTask('dist-js', ['concat', 'concurrent:uglify']);
 
   // CSS distribution task.
-  grunt.registerTask('less-compile', ['less:compileCore', 'less:compileTheme']);
-  grunt.registerTask('dist-css', ['less-compile', 'autoprefixer', 'usebanner', 'csscomb', 'cssmin']);
+  grunt.registerTask('less-compile', 'concurrent:less');
+  grunt.registerTask('dist-css', ['less-compile', 'concurrent:autoprefixer', 'usebanner', 'concurrent:csscomb', 'concurrent:cssmin']);
 
   // Docs distribution task.
   grunt.registerTask('dist-docs', 'copy:docs');
