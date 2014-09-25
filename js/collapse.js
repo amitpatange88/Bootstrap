@@ -13,12 +13,18 @@
   // COLLAPSE PUBLIC CLASS DEFINITION
   // ================================
 
-  var Collapse = function (element, options) {
-    this.$element      = $(element)
+  var Collapse = function (el, options) {
+    this.$element      = $(el)
     this.options       = $.extend({}, Collapse.DEFAULTS, options)
+    this.$trigger      = $(this.options.trigger || '[data-toggle="collapse"]').filter('[href="#' + el.id + '"], [data-target="#' + el.id + '"]')
     this.transitioning = null
 
-    if (this.options.parent) this.$parent = $(this.options.parent)
+    if (this.options.parent) {
+      this.$parent = this.getParent()
+    } else {
+      this.addAriaAndCollapsedClass(this.$element, this.$trigger)
+    }
+
     if (this.options.toggle) this.toggle()
   }
 
@@ -58,6 +64,10 @@
       .addClass('collapsing')[dimension](0)
       .attr('aria-expanded', true)
 
+    this.$trigger
+      .removeClass('collapsed')
+      .attr('aria-expanded', true)
+
     this.transitioning = 1
 
     var complete = function () {
@@ -94,6 +104,10 @@
       .removeClass('collapse in')
       .attr('aria-expanded', false)
 
+    this.$trigger
+      .addClass('collapsed')
+      .attr('aria-expanded', false)
+
     this.transitioning = 1
 
     var complete = function () {
@@ -114,6 +128,33 @@
 
   Collapse.prototype.toggle = function () {
     this[this.$element.hasClass('in') ? 'hide' : 'show']()
+  }
+
+  Collapse.prototype.getParent = function () {
+    return $(this.options.parent)
+      .find('[data-toggle="collapse"][data-parent="' + this.options.parent + '"]')
+      .each($.proxy(function (i, element) {
+        var $element = $(element)
+        this.addAriaAndCollapsedClass(getTargetFromTrigger($element), $element)
+      }, this))
+      .end()
+  }
+
+  Collapse.prototype.addAriaAndCollapsedClass = function ($element, $trigger) {
+    var isOpen = $element.hasClass('in')
+
+    $element.attr('aria-expanded', isOpen)
+    $trigger
+      .toggleClass('collapsed', !isOpen)
+      .attr('aria-expanded', isOpen)
+  }
+
+  function getTargetFromTrigger($trigger) {
+    var href
+    var target = $trigger.attr('data-target')
+      || (href = $trigger.attr('href')) && href.replace(/.*(?=#[^\s]+$)/, '') // strip for ie7
+
+    return $(target)
   }
 
 
@@ -151,22 +192,13 @@
   // =================
 
   $(document).on('click.bs.collapse.data-api', '[data-toggle="collapse"]', function (e) {
-    var href
     var $this   = $(this)
-    var target  = $this.attr('data-target')
-        || e.preventDefault()
-        || (href = $this.attr('href')) && href.replace(/.*(?=#[^\s]+$)/, '') // strip for ie7
-    var $target = $(target)
-    var data    = $target.data('bs.collapse')
-    var option  = data ? 'toggle' : $this.data()
-    var parent  = $this.attr('data-parent')
-    var $parent = parent && $(parent)
 
-    if (!data || !data.transitioning) {
-      if ($parent) $parent.find('[data-toggle="collapse"][data-parent="' + parent + '"]').not($this).addClass('collapsed').attr('aria-expanded', false)
-      var isCollapsed = $target.hasClass('in')
-      $this.toggleClass('collapsed', isCollapsed).attr('aria-expanded', !isCollapsed)
-    }
+    if (!$this.attr('data-target')) e.preventDefault()
+
+    var $target = getTargetFromTrigger($this)
+    var data    = $target.data('bs.collapse')
+    var option  = data ? 'toggle' : $.extend({}, $this.data(), { trigger: this })
 
     Plugin.call($target, option)
   })
